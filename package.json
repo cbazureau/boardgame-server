@@ -4,10 +4,10 @@
   "description": "Sandboxed boardgame with chat",
   "main": "src/server.js",
   "scripts": {
-    "dev": "nodemon --watch src/server/server.js src/server/server.js",
+    "dev": "nodemon --watch src/server/server.js src/server.js",
     "lint": "eslint src",
     "prettier:js": "prettier --write \"src/**/*.js\"",
-    "start": "cross-env NODE_ENV=production node src/server/server.js"
+    "start": "cross-env NODE_ENV=production node src/server.js"
   },
   "author": "Cédric Bazureau",
   "keywords": [
