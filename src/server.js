@@ -15,11 +15,11 @@ app.use(compression());
 // Reminder https://socket.io/docs/emit-cheatsheet/
 
 app.disable('x-powered-by');
-io.sockets.on('connection', socket => {
+io.sockets.on('connection', (socket) => {
   let room = '';
 
   // message
-  socket.on('message', message => socket.broadcast.to(room).emit('message', message));
+  socket.on('message', (message) => socket.broadcast.to(room).emit('message', message));
 
   // find
   socket.on('find', ({ roomId, user, game }) => {
@@ -53,7 +53,7 @@ io.sockets.on('connection', socket => {
   });
 
   // auth
-  socket.on('auth', data => {
+  socket.on('auth', (data) => {
     console.log('[server] auth', socket.id);
     socket.broadcast.to(room).emit('approve', { ...data, sid: socket.id });
   });
@@ -66,7 +66,7 @@ io.sockets.on('connection', socket => {
   });
 
   // accept
-  socket.on('accept', id => {
+  socket.on('accept', (id) => {
     console.log('[server] accept', socket.id);
     io.sockets.connected[id].join(room);
     io.in(room).emit('bridge');
