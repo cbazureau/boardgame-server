@@ -30,6 +30,7 @@ io.sockets.on('connection', socket => {
       // no room with such name is found so create it
       socket.join(room);
       rooms[roomId] = {
+        originalGame: game,
         game: rooms && rooms[room] && rooms[room].game ? rooms[room].game : game,
         users: [
           {
@@ -63,6 +64,13 @@ io.sockets.on('connection', socket => {
     console.log('[server] play', socket.id, game.objects);
     rooms[room].game = { ...rooms[room].game, ...game };
     io.to(room).emit('update', { game });
+  });
+
+  // reset
+  socket.on('reset', () => {
+    console.log('[server] reset', socket.id);
+    rooms[room].game = { ...rooms[room].game, ...rooms[room].originalGame };
+    io.to(room).emit('update', { game: rooms[room].game });
   });
 
   // accept
