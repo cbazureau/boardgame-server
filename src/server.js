@@ -1,4 +1,5 @@
 const express = require('express');
+const _remove = require('lodash/remove');
 const http = require('http');
 const sio = require('socket.io');
 const compression = require('compression');
@@ -15,70 +16,96 @@ app.use(compression());
 // Reminder https://socket.io/docs/emit-cheatsheet/
 
 app.disable('x-powered-by');
+
+const emitUpdate = _roomId => {
+  io.to(_roomId).emit('update', { game: rooms[_roomId].game, users: rooms[_roomId].users });
+};
+
 io.sockets.on('connection', socket => {
-  let room = '';
+  let _roomId = '';
 
   // message
-  socket.on('message', message => socket.broadcast.to(room).emit('message', message));
+  socket.on('message', message => socket.broadcast.to(_roomId).emit('message', message));
 
-  // find
-  socket.on('find', ({ roomId, user, game }) => {
-    console.log('[server] find', socket.id, roomId);
-    room = roomId;
-    const sr = io.sockets.adapter.rooms[room];
-    if (sr === undefined) {
-      // no room with such name is found so create it
-      socket.join(room);
-      rooms[roomId] = {
-        originalGame: game,
-        game: rooms && rooms[room] && rooms[room].game ? rooms[room].game : game,
-        users: [
-          {
-            id: socket.id,
-            user,
-          },
-        ],
+  // welcome-lobby
+  socket.on('welcome-lobby', ({ roomId }) => {
+    console.log('[server] welcome-lobby', socket.id, roomId);
+    _roomId = roomId;
+    const user = {
+      id: socket.id,
+      serverStatus: 'IN_LOBBY',
+    };
+    if (!rooms[_roomId]) {
+      rooms[_roomId] = {
+        users: [],
+        game: undefined,
       };
-      socket.emit('create');
-    } else if (sr.length === 1) {
-      socket.emit('join');
-      rooms[roomId].users.push({
-        id: socket.id,
-        user,
-      });
-    } else {
-      // max two clients
-      socket.emit('full', room);
     }
-    io.to(room).emit('update', { game: rooms[room].game });
+    const sr = io.sockets.adapter.rooms[_roomId];
+    if (rooms[_roomId].users.find(u => u.id === socket.id)) {
+      _remove(rooms[users], u => u.id == socket.id);
+    } else {
+      socket.join(_roomId);
+    }
+    rooms[_roomId].users.push(user);
+    socket.emit('enter-lobby', { currentUser: user });
+
+    // update room info
+    emitUpdate(_roomId);
+  });
+
+  // welcome-game
+  socket.on('welcome-game', ({ username, game }) => {
+    console.log('[server] welcome-game', socket.id);
+    const currentUserIndex = rooms[_roomId].users.findIndex(u => u.id === socket.id);
+    const currentUser = rooms[_roomId].users[currentUserIndex];
+
+    if (!currentUser || currentUser.serverStatus !== 'IN_LOBBY') return;
+
+    const isSomeHost = rooms[_roomId].users.find(u => u.isHost);
+
+    // Update user
+    rooms[_roomId].users[currentUserIndex] = { ...currentUser, isHost: !isSomeHost, username };
+    rooms[_roomId].game = game;
+    rooms[_roomId].originalGame = game;
+
+    if (!isSomeHost) socket.emit('create');
+    else socket.emit('join');
+
+    // update room info
+    emitUpdate(_roomId);
   });
 
   // auth
   socket.on('auth', data => {
     console.log('[server] auth', socket.id);
-    socket.broadcast.to(room).emit('approve', { ...data, sid: socket.id });
+    socket.broadcast.to(_roomId).emit('approve', { ...data, sid: socket.id });
   });
 
   // play
   socket.on('play', ({ game }) => {
     console.log('[server] play', socket.id, game.objects);
-    rooms[room].game = { ...rooms[room].game, ...game };
-    io.to(room).emit('update', { game });
+    rooms[_roomId].game = { ...rooms[_roomId].game, ...game };
+
+    // update room info
+    emitUpdate(_roomId);
   });
 
   // reset
   socket.on('reset', () => {
     console.log('[server] reset', socket.id);
-    rooms[room].game = { ...rooms[room].game, ...rooms[room].originalGame };
-    io.to(room).emit('update', { game: rooms[room].game });
+    rooms[_roomId].game = { ...rooms[_roomId].game, ...rooms[_roomId].originalGame };
+    io.to(_roomId).emit('update', { game: rooms[_roomId].game });
   });
 
   // accept
   socket.on('accept', id => {
     console.log('[server] accept', socket.id);
-    io.sockets.connected[id].join(room);
-    io.in(room).emit('bridge');
-    io.to(room).emit('update', { game: rooms[room].game });
+    io.sockets.connected[id].join(_roomId);
+    io.in(_roomId).emit('bridge');
+
+    // update room info
+    emitUpdate(_roomId);
   });
 
   // reject
@@ -87,7 +114,11 @@ io.sockets.on('connection', socket => {
   // leave
   socket.on('leave', () => {
     console.log('[server] leave', socket.id);
-    socket.broadcast.to(room).emit('hangup');
-    socket.leave(room);
+    if (rooms[_roomId]) _remove(rooms[_roomId].users, u => u.id == socket.id);
+    socket.broadcast.to(_roomId).emit('hangup');
+    socket.leave(_roomId);
+
+    // update room info
+    emitUpdate(_roomId);
   });
 });
