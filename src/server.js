@@ -18,6 +18,7 @@ app.use(compression());
 app.disable('x-powered-by');
 
 const emitUpdate = _roomId => {
+  console.log('[server] emitUpdate');
   io.to(_roomId).emit('update', { game: rooms[_roomId].game, users: rooms[_roomId].users });
 };
 
@@ -41,9 +42,9 @@ io.sockets.on('connection', socket => {
         game: undefined,
       };
     }
-    const sr = io.sockets.adapter.rooms[_roomId];
+    // const sr = io.sockets.adapter.rooms[_roomId];
     if (rooms[_roomId].users.find(u => u.id === socket.id)) {
-      _remove(rooms[users], u => u.id == socket.id);
+      _remove(rooms[_roomId].users, u => u.id == socket.id);
     } else {
       socket.join(_roomId);
     }
@@ -56,7 +57,7 @@ io.sockets.on('connection', socket => {
 
   // welcome-game
   socket.on('welcome-game', ({ username, game }) => {
-    console.log('[server] welcome-game', socket.id);
+    console.log('[server] welcome-game', socket.id, _roomId);
     const currentUserIndex = rooms[_roomId].users.findIndex(u => u.id === socket.id);
     const currentUser = rooms[_roomId].users[currentUserIndex];
 
@@ -84,7 +85,7 @@ io.sockets.on('connection', socket => {
 
   // play
   socket.on('play', ({ game }) => {
-    console.log('[server] play', socket.id, game.objects);
+    console.log('[server] play', socket.id, _roomId);
     rooms[_roomId].game = { ...rooms[_roomId].game, ...game };
 
     // update room info
@@ -113,7 +114,7 @@ io.sockets.on('connection', socket => {
 
   // leave
   socket.on('leave', () => {
-    console.log('[server] leave', socket.id);
+    console.log('[server] leave', socket.id, _roomId);
     if (rooms[_roomId]) _remove(rooms[_roomId].users, u => u.id == socket.id);
     socket.broadcast.to(_roomId).emit('hangup');
     socket.leave(_roomId);
