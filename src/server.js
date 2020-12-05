@@ -18,7 +18,8 @@ app.use(compression());
 app.disable('x-powered-by');
 
 const emitUpdate = _roomId => {
-  console.log('[server] emitUpdate');
+  console.log('[server] emitUpdate', _roomId);
+  if (!_roomId || !rooms[_roomId]) return;
   io.to(_roomId).emit('update', { game: rooms[_roomId].game, users: rooms[_roomId].users });
 };
 
@@ -29,7 +30,7 @@ io.sockets.on('connection', socket => {
   socket.on('message', message => socket.broadcast.to(_roomId).emit('message', message));
 
   // welcome-lobby
-  socket.on('welcome-lobby', ({ roomId }) => {
+  socket.on('welcome-lobby', ({ roomId, proposedGame = null }) => {
     console.log('[server] welcome-lobby', socket.id, roomId);
     _roomId = roomId;
     const user = {
@@ -37,9 +38,11 @@ io.sockets.on('connection', socket => {
       serverStatus: 'IN_LOBBY',
     };
     if (!rooms[_roomId]) {
+      if (!proposedGame) return;
       rooms[_roomId] = {
         users: [],
-        game: undefined,
+        game: proposedGame,
+        originalGame: proposedGame,
       };
     }
     // const sr = io.sockets.adapter.rooms[_roomId];
@@ -49,6 +52,7 @@ io.sockets.on('connection', socket => {
       socket.join(_roomId);
     }
     rooms[_roomId].users.push(user);
+    console.log('[server] users', rooms[_roomId].users);
     socket.emit('enter-lobby', { currentUser: user });
 
     // update room info
@@ -56,7 +60,7 @@ io.sockets.on('connection', socket => {
   });
 
   // welcome-game
-  socket.on('welcome-game', ({ username, game }) => {
+  socket.on('welcome-game', ({ username }) => {
     console.log('[server] welcome-game', socket.id, _roomId);
     const currentUserIndex = rooms[_roomId].users.findIndex(u => u.id === socket.id);
     const currentUser = rooms[_roomId].users[currentUserIndex];
@@ -66,9 +70,12 @@ io.sockets.on('connection', socket => {
     const isSomeHost = rooms[_roomId].users.find(u => u.isHost);
 
     // Update user
-    rooms[_roomId].users[currentUserIndex] = { ...currentUser, isHost: !isSomeHost, username };
-    rooms[_roomId].game = game;
-    rooms[_roomId].originalGame = game;
+    rooms[_roomId].users[currentUserIndex] = {
+      ...currentUser,
+      isHost: !isSomeHost,
+      username,
+      serverStatus: 'IN_GAME',
+    };
 
     if (!isSomeHost) socket.emit('create');
     else socket.emit('join');
