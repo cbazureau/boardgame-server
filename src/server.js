@@ -20,6 +20,7 @@ app.disable('x-powered-by');
 const emitUpdate = _roomId => {
   console.log('[server] emitUpdate', _roomId);
   if (!_roomId || !rooms[_roomId]) return;
+  console.log('[server] users', rooms[_roomId].users);
   io.to(_roomId).emit('update', { game: rooms[_roomId].game, users: rooms[_roomId].users });
 };
 
@@ -52,7 +53,6 @@ io.sockets.on('connection', socket => {
       socket.join(_roomId);
     }
     rooms[_roomId].users.push(user);
-    console.log('[server] users', rooms[_roomId].users);
     socket.emit('enter-lobby', { currentUser: user });
 
     // update room info
