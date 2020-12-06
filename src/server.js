@@ -77,9 +77,17 @@ io.sockets.on('connection', socket => {
       serverStatus: 'IN_GAME',
     };
 
-    if (!isSomeHost) socket.emit('create');
-    else socket.emit('join');
+    socket.emit('enter-game');
 
+    // update room info
+    emitUpdate(_roomId);
+  });
+
+  // welcome-rtc
+  socket.on('welcome-rtc', () => {
+    const currentUser = rooms[_roomId].users.find(u => u.id === socket.id) || {};
+    if (currentUser.isHost) socket.emit('create');
+    else socket.emit('join');
     // update room info
     emitUpdate(_roomId);
   });
