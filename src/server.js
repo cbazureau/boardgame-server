@@ -53,6 +53,7 @@ io.sockets.on('connection', socket => {
       socket.join(_roomId);
     }
     rooms[_roomId].users.push(user);
+    console.log('[server][emit] enter-lobby', socket.id, user);
     socket.emit('enter-lobby', { currentUser: user });
 
     // update room info
@@ -77,6 +78,7 @@ io.sockets.on('connection', socket => {
       serverStatus: 'IN_GAME',
     };
 
+    console.log('[server][emit] enter-game', socket.id);
     socket.emit('enter-game');
 
     // update room info
@@ -101,7 +103,9 @@ io.sockets.on('connection', socket => {
   // play
   socket.on('play', ({ game }) => {
     console.log('[server] play', socket.id, _roomId);
-    rooms[_roomId].game = { ...rooms[_roomId].game, ...game };
+    if (rooms[_roomId] && rooms[_roomId].game) {
+      rooms[_roomId].game = { ...rooms[_roomId].game, ...game };
+    }
 
     // update room info
     emitUpdate(_roomId);
