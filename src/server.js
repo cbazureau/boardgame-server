@@ -63,6 +63,7 @@ io.sockets.on('connection', socket => {
   // welcome-game
   socket.on('welcome-game', ({ username }) => {
     console.log('[server] welcome-game', socket.id, _roomId);
+    if (!_roomId || !rooms[_roomId]) return;
     const currentUserIndex = rooms[_roomId].users.findIndex(u => u.id === socket.id);
     const currentUser = rooms[_roomId].users[currentUserIndex];
 
@@ -87,6 +88,7 @@ io.sockets.on('connection', socket => {
 
   // welcome-rtc
   socket.on('welcome-rtc', () => {
+    if (!_roomId || !rooms[_roomId]) return;
     const currentUser = rooms[_roomId].users.find(u => u.id === socket.id) || {};
     if (currentUser.isHost) socket.emit('create');
     else socket.emit('join');
@@ -114,6 +116,7 @@ io.sockets.on('connection', socket => {
   // reset
   socket.on('reset', () => {
     console.log('[server] reset', socket.id);
+    if (!_roomId || !rooms[_roomId]) return;
     rooms[_roomId].game = { ...rooms[_roomId].game, ...rooms[_roomId].originalGame };
     io.to(_roomId).emit('update', { game: rooms[_roomId].game });
   });
