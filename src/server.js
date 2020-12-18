@@ -28,7 +28,10 @@ io.sockets.on('connection', socket => {
   let _roomId = '';
 
   // message
-  socket.on('message', message => socket.broadcast.to(_roomId).emit('message', message));
+  socket.on('message', message => {
+    console.log('[server] message ', message);
+    socket.broadcast.to(_roomId).emit('message', message);
+  });
 
   // welcome-lobby
   socket.on('welcome-lobby', ({ roomId, proposedGame = null }) => {
@@ -86,22 +89,6 @@ io.sockets.on('connection', socket => {
     emitUpdate(_roomId);
   });
 
-  // welcome-rtc
-  socket.on('welcome-rtc', () => {
-    if (!_roomId || !rooms[_roomId]) return;
-    const currentUser = rooms[_roomId].users.find(u => u.id === socket.id) || {};
-    if (currentUser.isHost) socket.emit('create');
-    else socket.emit('join');
-    // update room info
-    emitUpdate(_roomId);
-  });
-
-  // auth
-  socket.on('auth', data => {
-    console.log('[server] auth', socket.id);
-    socket.broadcast.to(_roomId).emit('approve', { ...data, sid: socket.id });
-  });
-
   // play
   socket.on('play', ({ game }) => {
     console.log('[server] play', socket.id, _roomId);
@@ -120,19 +107,6 @@ io.sockets.on('connection', socket => {
     rooms[_roomId].game = { ...rooms[_roomId].game, ...rooms[_roomId].originalGame };
     io.to(_roomId).emit('update', { game: rooms[_roomId].game });
   });
-
-  // accept
-  socket.on('accept', id => {
-    console.log('[server] accept', socket.id);
-    io.sockets.connected[id].join(_roomId);
-    io.in(_roomId).emit('bridge');
-
-    // update room info
-    emitUpdate(_roomId);
-  });
-
-  // reject
-  socket.on('reject', () => socket.emit('full'));
 
   // leave
   socket.on('leave', () => {
